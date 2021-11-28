@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+set -o pipefail
+
+VOLUME_NAME=$1
+DOCKER_SHELL_IMAGE=busybox
+DEST_FILE_NAME="${VOLUME_NAME}.tar"
+DEST_FILE_NAME=${2:-$DEST_FILE_NAME}
+DOCKER_BIN=`command -v docker || which docker`
+
+if [[ "$DOCKER_BIN" == "" ]]; then
+    echo "Docker binary not found. Please install docker first."
+    echo "Can use: curl https://get.docker.com | sh"
+    exit 1
+fi
+
+if [ -z "$VOLUME_NAME" ]; then
+  echo "Usage: $0 <volume name> (<destination file name>)"
+  exit 1
+fi
+
+$DOCKER_BIN volume inspect $VOLUME_NAME > /dev/null 2>&1 || {
+  echo "Volume $VOLUME_NAME does not exist"
+  exit 1
+}
+
+read -p "Are you sure you want to export volume $VOLUME_NAME to $DEST_FILE_NAME.tgz ? [y/N] " -n 1 -r
+
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+  echo
+  echo "Aborting."
+  exit 1
+fi
+
+echo
+echo "Exporting volume $VOLUME_NAME to $DEST_FILE_NAME.tgz ..."
+$DOCKER_BIN run --rm -v $VOLUME_NAME:/volume $DOCKER_SHELL_IMAGE sh -c 'tar -cOzf - /volume' > $DEST_FILE_NAME.tgz
